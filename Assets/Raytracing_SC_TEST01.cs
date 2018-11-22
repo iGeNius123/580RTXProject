@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
+//[ExecuteInEditMode]
 public class Raytracing_SC_TEST01 : MonoBehaviour
 {
+    public List<GameObject> Models;
     public ComputeShader RayTracingShader;
     public Texture SkyboxTexture;
     public Light DirectionalLight;
@@ -18,7 +21,9 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
     private Material _addMaterial;
     private uint _currentSample = 0;
     private ComputeBuffer _sphereBuffer;
+    private ComputeBuffer _meshObjectBuffer;
     private List<Transform> _transformsToWatch = new List<Transform>();
+    private List<Vector4> BoundingSpere;
 
     struct Sphere
     {
@@ -26,6 +31,11 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
         public float radius;
         public Vector3 albedo;
         public Vector3 specular;
+    }
+
+    struct MeshObject
+    {
+        public Vector3 v1;
     }
 
     private void Awake()
@@ -66,7 +76,53 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
         }
     }
 
-    private void SetUpScene()
+    private void SetupMeshObjects()
+    {
+        BoundingSpere = new List<Vector4>();
+
+        foreach (GameObject model in Models)
+        {
+            Mesh mesh = model.GetComponent<MeshFilter>().sharedMesh;
+            float maxX = -Mathf.Infinity, maxY = -Mathf.Infinity, maxZ = -Mathf.Infinity, minX = Mathf.Infinity, minY = Mathf.Infinity, minZ = Mathf.Infinity;
+
+            foreach (var vert in mesh.vertices)
+            {
+                if (vert.x > maxX) maxX = vert.x;
+                if (vert.y > maxY) maxY = vert.y;
+                if (vert.z > maxZ) maxZ = vert.z;
+                if (vert.x < minX) minX = vert.x;
+                if (vert.y < minY) minY = vert.y;
+                if (vert.z < minZ) minZ = vert.z;
+            }
+
+            float x = maxX - minX;
+            float y = maxY - minY;
+            float z = maxZ - minZ;
+
+            Vector3 origin = new Vector3(0.5f * (maxX + minX), 0.5f * (maxY + minY), 0.5f * (maxZ + minZ));
+
+            float r = x > y ? x * 0.5f : y * 0.5f;
+            r = r > z ? r : z * 0.5f;
+
+            foreach (var vert in mesh.vertices)
+            {
+                if (Vector3.Distance(vert, origin) > r)
+                    r = Vector3.Distance(vert, origin);
+            }
+            BoundingSpere.Add(new Vector4(origin.x, origin.y, origin.z, r));
+        }
+
+        // Assign to compute buffer
+        if (_meshObjectBuffer != null)
+            _meshObjectBuffer.Release();
+        if (spheres.Count > 0)
+        {
+            _meshObjectBuffer = new ComputeBuffer(spheres.Count, 40);
+            _meshObjectBuffer.SetData(spheres);
+        }
+    }
+
+    private void SetupGeneratedSpheres()
     {
         List<Sphere> spheres = new List<Sphere>();
 
@@ -111,6 +167,12 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
         }
     }
 
+    private void SetUpScene()
+    {
+        SetupGeneratedSpheres();
+        SetupMeshObjects();
+    }
+
     private void SetShaderParameters()
     {
         RayTracingShader.SetTexture(0, "_SkyboxTexture", SkyboxTexture);
@@ -123,6 +185,9 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
 
         if (_sphereBuffer != null)
             RayTracingShader.SetBuffer(0, "_Spheres", _sphereBuffer);
+
+        if (_meshObjectBuffer != null)
+            RayTracingShader.SetBuffer(0, "_MeshObjectBuffer", _meshObjectBuffer); 
     }
 
     private void InitRenderTexture()

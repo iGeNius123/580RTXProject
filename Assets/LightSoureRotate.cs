@@ -16,6 +16,6 @@ public class LightSoureRotate : MonoBehaviour {
         float y = light.transform.eulerAngles.y;
         float z = light.transform.eulerAngles.z;
 
-        light.transform.eulerAngles=new Vector3(x,y+0.5f,z);
+        light.transform.eulerAngles = new Vector3(x,y+0.5f,z);
 	}
 }

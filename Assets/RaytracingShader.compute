@@ -24,6 +24,12 @@ struct Sphere
 
 StructuredBuffer<Sphere> _Spheres;
 
+struct MeshObject
+{
+	float3 v1;
+};
+
+StructuredBuffer<MeshObject> _MeshObjectBuffer;
 
 //-------------------------------------
 //- RAY
