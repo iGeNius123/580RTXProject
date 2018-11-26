@@ -4,11 +4,6 @@ using UnityEngine;
 
 public class LightSoureRotate : MonoBehaviour {
     public GameObject light;
-
-	// Use this for initialization
-	void Start () {
-		
-	}
 	
 	// Update is called once per frame
 	void Update () {

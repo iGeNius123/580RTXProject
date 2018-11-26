@@ -24,12 +24,8 @@ struct Sphere
 
 StructuredBuffer<Sphere> _Spheres;
 
-struct MeshObject
-{
-	float3 v1;
-};
-
-StructuredBuffer<MeshObject> _MeshObjectBuffer;
+//StructuredBuffer<float3> _MeshObjectBuffer;
+float4 _MeshObjectVertices[38796];
 
 //-------------------------------------
 //- RAY
@@ -92,6 +88,66 @@ RayHit CreateRayHit()
 //-------------------------------------
 //- INTERSECTION
 
+void IntersectTriangle(Ray ray, inout RayHit bestHit, float4 v0, float4 v1, float4 v2)
+{
+	float t, u, v;
+
+	// E1
+	float4 E1 = v1 - v0;
+
+	// E2
+	float4 E2 = v2 - v0;
+
+	// P
+	float4 P = float4(cross(float4(ray.direction, 1), E2), 1);
+
+	// determinant
+	float det = dot(E1, P);
+
+	// keep det > 0, modify T accordingly
+	float4 T;
+	if (det >0)
+	{
+		T = float4(ray.origin, 1) - v0;
+	}
+	else
+	{
+		T = v0 - float4(ray.origin, 1);
+		det = -det;
+	}
+
+	// If determinant is near zero, ray lies in plane of triangle
+	if (det < 0.0001f)
+		return;
+
+	// Calculate u and make sure u <= 1
+	u = dot(T, P);
+	if (u < 0.0f || u > det)
+		return;
+
+	// Q
+	float4 Q = float4(cross(T, E1), 1);
+
+	// Calculate v and make sure u + v <= 1
+	v = dot(float4(ray.direction, 1), Q);
+	if (v < 0.0f || u + v > det)
+		return;
+
+	// Calculate t, scale parameters, ray intersects triangle
+	t = dot(E2, Q);
+
+	float fInvDet = 1.0f / det;
+	t *= fInvDet;
+	u *= fInvDet;
+	v *= fInvDet;
+
+	bestHit.distance = t;
+	bestHit.position = ray.origin + ray.direction * t;
+	bestHit.normal = normalize(cross(E1, E2));
+	bestHit.albedo = 0.8f;
+	bestHit.specular = 0.03f;
+}
+
 void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
 {
 	// Calculate distance along the ray where the ground plane is intersected
@@ -136,13 +192,18 @@ RayHit Trace(Ray ray)
 	RayHit bestHit = CreateRayHit();
 
 	// Trace ground plane
-	IntersectGroundPlane(ray, bestHit);
+	// IntersectGroundPlane(ray, bestHit);
 
 	// Trace spheres
 	uint numSpheres, stride;
 	_Spheres.GetDimensions(numSpheres, stride);
 	for (uint i = 0; i < numSpheres; i++)
 		IntersectSphere(ray, bestHit, i);
+
+	// Trace mesh objects
+	//for (uint i = 0; i < 38784; i += 3)
+		//IntersectTriangle(ray, bestHit, float4(_MeshObjectVertices[i].xyz, 1), float4(_MeshObjectVertices[i + 1].xyz, 1), float4(_MeshObjectVertices[i + 2].xyz, 1));
+
 	return bestHit;
 }
 

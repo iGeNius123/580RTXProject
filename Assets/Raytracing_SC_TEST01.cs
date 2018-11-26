@@ -21,9 +21,10 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
     private Material _addMaterial;
     private uint _currentSample = 0;
     private ComputeBuffer _sphereBuffer;
-    private ComputeBuffer _meshObjectBuffer;
+    private List<Vector4> _meshObjectVertices;
     private List<Transform> _transformsToWatch = new List<Transform>();
     private List<Vector4> BoundingSpere;
+    private List<Sphere> spheres = new List<Sphere>();
 
     struct Sphere
     {
@@ -79,6 +80,7 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
     private void SetupMeshObjects()
     {
         BoundingSpere = new List<Vector4>();
+        _meshObjectVertices = new List<Vector4>();
 
         foreach (GameObject model in Models)
         {
@@ -112,26 +114,51 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
             BoundingSpere.Add(new Vector4(origin.x, origin.y, origin.z, r));
         }
 
-        // Assign to compute buffer
-        if (_meshObjectBuffer != null)
-            _meshObjectBuffer.Release();
-        if (spheres.Count > 0)
+        foreach (GameObject model in Models)
         {
-            _meshObjectBuffer = new ComputeBuffer(spheres.Count, 40);
-            _meshObjectBuffer.SetData(spheres);
+            //Matrix4x4 localToWorldMatrix = model.transform.localToWorldMatrix;
+            Mesh mesh = model.GetComponent<MeshFilter>().sharedMesh;
+
+            foreach (int tri in mesh.triangles)
+            {
+                //Vector4 vec = localToWorldMatrix.MultiplyPoint(mesh.vertices[mesh.triangles[i]]);
+                _meshObjectVertices.Add(new Vector4(
+                    mesh.vertices[tri].x,
+                    mesh.vertices[tri].y,
+                    mesh.vertices[tri].z,
+                    1
+                ));
+            }
         }
+
     }
 
     private void SetupGeneratedSpheres()
     {
-        List<Sphere> spheres = new List<Sphere>();
+        foreach (Vector4 bs in BoundingSpere)
+        {
+            Sphere sphere = new Sphere();
 
-        // Add a number of random spheres
+            // Radius and position
+            sphere.radius = bs.w;
+            sphere.position = new Vector3(bs.x, bs.y, bs.z);
+
+            // Albedo and specular color
+            Color color = Random.ColorHSV();
+            bool metal = Random.value < 0.5f;
+            sphere.albedo = metal ? Vector4.zero : new Vector4(color.r, color.g, color.b);
+            sphere.specular = metal ? new Vector4(color.r, color.g, color.b) : new Vector4(0.04f, 0.04f, 0.04f);
+
+            // Add the sphere to the list
+            spheres.Add(sphere);
+        }
+   /*     
+        // Add a number of random spheres  
         for (int i = 0; i < SpheresMax; i++)
         {
             Sphere sphere = new Sphere();
 
-            // Radius and radius
+            // Radius and position
             sphere.radius = SphereRadius.x + Random.value * (SphereRadius.y - SphereRadius.x);
             Vector2 randomPos = Random.insideUnitCircle * SpherePlacementRadius;
             sphere.position = new Vector3(randomPos.x, sphere.radius, randomPos.y);
@@ -156,6 +183,7 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
         SkipSphere:
             continue;
         }
+        */
 
         // Assign to compute buffer
         if (_sphereBuffer != null)
@@ -169,8 +197,8 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
 
     private void SetUpScene()
     {
-        SetupGeneratedSpheres();
         SetupMeshObjects();
+        SetupGeneratedSpheres();
     }
 
     private void SetShaderParameters()
@@ -186,8 +214,8 @@ public class Raytracing_SC_TEST01 : MonoBehaviour
         if (_sphereBuffer != null)
             RayTracingShader.SetBuffer(0, "_Spheres", _sphereBuffer);
 
-        if (_meshObjectBuffer != null)
-            RayTracingShader.SetBuffer(0, "_MeshObjectBuffer", _meshObjectBuffer); 
+        if (_meshObjectVertices != null)
+            RayTracingShader.SetVectorArray("_MeshObjectVertices", _meshObjectVertices.ToArray());
     }
 
     private void InitRenderTexture()
