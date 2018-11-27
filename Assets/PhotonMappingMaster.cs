@@ -45,16 +45,12 @@ public class RayTracingMaster : MonoBehaviour
         public int sphere_id;
     }
 
-    Photon p = new Photon();
-    Sphere oo = new Sphere();
-
     private Vector3 lightPos = PointLight.transform.position;
 
     private int numPhotons = 1000; // total number of photons emitted
     private int numBounces = 3; // max number of times each photon bounces
     private float sqRadius = 0.7f;
     private float exposure = 50.0f;
-    //Photon p = new Photon();
     private List<Photon> gPhotonMap = new List<Photon>();
 
     private bool gIntersect = false; // did photon intersect anything?
@@ -108,6 +104,10 @@ public class RayTracingMaster : MonoBehaviour
         {
             intersectSphere(other, ray, origin);
         }
+        //foreach (Plane p in planes)
+        //{
+        //    intersectPlane();
+        //}
     }
 
     private void emitPhotons ()
@@ -132,7 +132,8 @@ public class RayTracingMaster : MonoBehaviour
             // boundary or inside a sphere
             // 1.5 is boundary of cornell box?
             // 1.2 is light source?
-            if (abs (prevPoint [0]) > 1.5 || abs (prevPoint [1]) > 1.2f || findSqureDistance (prevPoint, objects.getSphereObject (0), objects.getSphereData (0, 3) * objects.getSphereData (0, 3)))
+            float[] s = { spheres[0].position.x, spheres[0].position.y, spheres[0].position.z };
+            if (abs (prevPoint [0]) > 1.5 || abs (prevPoint [1]) > 1.2f || findSqureDistance (prevPoint, s, spheres[0].radius * spheres[0].radius))
                 bounces = numBounces + 1;
 
             rayTrace (ray, prevPoint);
@@ -153,7 +154,8 @@ public class RayTracingMaster : MonoBehaviour
     }
       
     private void storePhoton (int id, float[] position, float[] direction, float[] energy)
-    {      
+    {
+        Photon p = new Photon();
         p.position.x = position[0];
         p.position.y = position[1];
         p.position.z = position[2];
@@ -252,7 +254,7 @@ public class RayTracingMaster : MonoBehaviour
         d += c * c;
         if (d > sqradius)
             return false;
-        variableUtils.setSqDistance (d);
+        gSqDist = d;
         return true;
     }
 
@@ -268,25 +270,26 @@ public class RayTracingMaster : MonoBehaviour
 
     public float[] sphereNormal (int idx, float[] P)
     {
-        return normalize3 (substractXYZ (P, objects.getSphereObject (idx)));
+        float[] s = { spheres[idx].position.x, spheres[idx].position.y, spheres[idx].position.z };
+        return normalize3 (substractXYZ(P, s));
     }
 
-    public float[] planeNormal (int idx, float[] P, float[] O)
+    /*public float[] planeNormal (int idx, float[] P, float[] O)
     {
         int axis = (int)objects.getPlaneData (idx, 0);
         float[] N = { 0.0f, 0.0f, 0.0f };
         N [axis] = O [axis] - objects.getPlaneData (idx, 1);
         return normalize3 (N);
-    }
+    }*/
 
-    public float[] surfaceNormal (int type, int index, float[] P, float[] Inside)
+    /*public float[] surfaceNormal (int type, int index, float[] P, float[] Inside)
     {
         if (type == 0) {
             return sphereNormal (index, P);
         } else {
-            return planeNormal (index, P, Inside);
+            //return planeNormal (index, P, Inside);
         }
-    }
+    }*/
 
     public float lightObject (int type, int idx, float[] P, float lightAmbient)
     {
@@ -294,7 +297,7 @@ public class RayTracingMaster : MonoBehaviour
         b[0] = lightPos.x;
         b[1] = lightPos.y;
         b[2] = lightPos.z;
-        float i = lightDiffuse (surfaceNormal (type, idx, P, b), P);
+        float i = lightDiffuse (surfaceNormal (idx, P, b), P);
         return  Mathf.Min (1.0f, Mathf.Max (i, lightAmbient));
     }
 
@@ -305,7 +308,7 @@ public class RayTracingMaster : MonoBehaviour
         _camera = GetComponent<Camera>();
 
         _transformsToWatch.Add(transform);
-        _transformsToWatch.Add(Directionalight.transform);
+        _transformsToWatch.Add(DirectionalLight.transform);
 
     }
 

@@ -14,8 +14,17 @@ SamplerState sampler_SkyboxTexture;
 
 static const float PI = 3.14159265f;
 
+struct Photon
+{
+	float3 position;
+	float3 direction;
+	float3 energy;
+	int sphere_id;
+};
+
 struct Sphere
 {
+	int id;
 	float3 position;
 	float radius;
 	float3 albedo;
@@ -23,6 +32,8 @@ struct Sphere
 };
 
 StructuredBuffer<Sphere> _Spheres;
+StructuredBuffer<Photon> _PhotonMap0;
+StructuredBuffer<Photon> _PhotonMap1;
 
 
 //-------------------------------------
